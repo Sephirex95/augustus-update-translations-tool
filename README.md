@@ -17,4 +17,5 @@ INSTRUCTIONS:
 4. Click 'Generate .txt (...)' to save a txt file with just the required keys
 or
 3. Select 'Translate with UI' to open a list of keys requiring translation
-4. Translate keys and click 'OK' to append the translated keys to the selected destination C file
+   ![ss2](screenshot2.png)
+5. Translate keys and click 'OK' to append the translated keys to the selected destination C file
