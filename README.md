@@ -12,7 +12,7 @@ You can build the application yourself using Python 3.11 or newer, which is reco
 INSTRUCTIONS:
 1. Select the source translation file from augustus/src/translations/ directory (usually you should translate from english.c)
 2. Select destination translation file from augustus/src/translations/ directory (your translation language)
-![ss1]([image-url](screenshot1.png)
+![ss1](screenshot1.png)
 
 4. Click 'Generate .txt (...)' to save a txt file with just the required keys
 or
