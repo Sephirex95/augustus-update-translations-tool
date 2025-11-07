@@ -1,0 +1,95 @@
+name: Continuous Build
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            archive: zip
+          - os: macos-13
+            archive: zip
+          - os: ubuntu-latest
+            archive: tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install PyInstaller + PyQt6
+        run: |
+          python -m pip install --upgrade pip wheel
+          pip install pyinstaller pyqt6
+
+      # Linux Qt runtime deps are still needed for PyQt GUI execution & bundling
+      - name: Install Qt runtime deps (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-cursor0 libxcb-xtest0 libxkbcommon-x11-0
+
+      - name: Show versions
+        run: |
+          python - << 'EOF'
+          import sys, PyInstaller, PyQt6
+          print(sys.version)
+          print("PyInstaller", PyInstaller.__version__)
+          print("PyQt6", PyQt6.__version__)
+          EOF
+
+      - name: Build with PyInstaller
+        run: |
+          if [ -f translations.spec ]; then
+            pyinstaller --noconfirm --clean translations.spec
+          else
+            pyinstaller --noconfirm --clean \
+              --name translations \
+              --onefile --windowed \
+              --collect-all PyQt6 \
+              translations.py
+          fi
+
+      # ---------- Package executable ----------
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          7z a translations-Windows.zip dist/translations.exe
+
+      - name: Package artifact (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          (cd dist && ditto -c -k --sequesterRsrc --keepParent translations.app ../translations-macOS.zip) \
+          || (cd dist && zip -r ../translations-macOS.zip translations)
+
+      - name: Package artifact (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          tar -czf translations-Linux.tar.gz -C dist translations
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-artifact
+          path: |
+            *.zip
+            *.tar.gz
+
+  re
