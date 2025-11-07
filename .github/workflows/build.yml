@@ -12,6 +12,10 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash   # <- enforce bash everywhere
+
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +42,6 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install pyinstaller pyqt6
 
-      # Linux Qt runtime deps are still needed for PyQt GUI execution & bundling
       - name: Install Qt runtime deps (Linux only)
         if: runner.os == 'Linux'
         run: |
@@ -52,7 +55,6 @@ jobs:
           python -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)"
           python -c "from PyQt6.QtCore import QT_VERSION_STR; print('PyQt6 (Qt) version:', QT_VERSION_STR)"
 
-
       - name: Build with PyInstaller
         run: |
           if [ -f translations.spec ]; then
@@ -65,27 +67,54 @@ jobs:
               translations.py
           fi
 
-      # ---------- Package executable ----------
-      - name: Package artifact (Windows)
+      # ------------ Packaging ------------
+      - name: Package Windows
         if: runner.os == 'Windows'
         run: |
           7z a translations-Windows.zip dist/translations.exe
 
-      - name: Package artifact (macOS)
+      - name: Package macOS
         if: runner.os == 'macOS'
         run: |
-          (cd dist && ditto -c -k --sequesterRsrc --keepParent translations.app ../translations-macOS.zip) \
-          || (cd dist && zip -r ../translations-macOS.zip translations)
+          if [ -d dist/translations.app ]; then
+            (cd dist && ditto -c -k --sequesterRsrc --keepParent translations.app ../translations-macOS.zip)
+          else
+            (cd dist && zip -r ../translations-macOS.zip translations)
+          fi
 
-      - name: Package artifact (Linux)
+      - name: Package Linux
         if: runner.os == 'Linux'
         run: |
           tar -czf translations-Linux.tar.gz -C dist translations
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-artifact
           path: |
             *.zip
             *.tar.gz
+
+  release:
+    name: Update Continuous Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all archived builds
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish rolling release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: continuous
+          commit: ${{ github.sha }}
+          name: "Continuous Auto-Build"
+          body: "Auto-built from ${{ github.ref }} @ ${{ github.sha }}"
+          artifacts: "artifacts/*"
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
