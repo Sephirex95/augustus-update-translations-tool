@@ -49,10 +49,11 @@ jobs:
       - name: Show versions
         run: |
           python - << 'EOF'
-          import sys, PyInstaller, PyQt6
+          import sys, PyInstaller
+          from PyQt6.QtCore import QT_VERSION_STR
           print(sys.version)
           print("PyInstaller", PyInstaller.__version__)
-          print("PyQt6", PyQt6.__version__)
+          print("PyQt6 (Qt) version:", QT_VERSION_STR)
           EOF
 
       - name: Build with PyInstaller
